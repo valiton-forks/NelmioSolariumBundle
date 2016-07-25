@@ -13,6 +13,7 @@ namespace Nelmio\SolariumBundle\Tests;
 
 use Nelmio\SolariumBundle\DependencyInjection\NelmioSolariumExtension;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Definition;
 use Symfony\Component\DependencyInjection\ParameterBag\ParameterBag;
 
 class NelmioSolariumExtensionTest extends \PHPUnit_Framework_TestCase
@@ -160,6 +161,27 @@ class NelmioSolariumExtensionTest extends \PHPUnit_Framework_TestCase
         $this->assertInstanceOf('Nelmio\SolariumBundle\Tests\StubClient', $container->get('solarium.client'));
         $this->assertInstanceOf('Nelmio\SolariumBundle\Tests\StubClient', $container->get('solarium.client.client2'));
     }
+
+    public function testPlugins()
+    {
+        $config = array(
+          'clients' => array(
+            'client' => array(
+              'plugins' => array('plugin1' => array('plugin_service' => 'my_plugin'), 'plugin2' => array('plugin_class' => 'Nelmio\SolariumBundle\Tests\MyPluginClass'))
+            )
+          ),
+        );
+
+        $container = $this->createCompiledContainerForConfig($config, true, array('my_plugin' => new Definition('Nelmio\SolariumBundle\Tests\MyPluginClass')));
+
+        $client = $container->get('solarium.client');
+        $plugin1 = $client->getPlugin('plugin1');
+        $plugin2 = $client->getPlugin('plugin2');
+
+        $this->assertInstanceOf('Nelmio\SolariumBundle\Tests\MyPluginClass', $plugin1);
+        $this->assertInstanceOf('Nelmio\SolariumBundle\Tests\MyPluginClass', $plugin2);
+    }
+
 
     public function testDsnAndOtherParamsTogether()
     {
@@ -470,9 +492,10 @@ class NelmioSolariumExtensionTest extends \PHPUnit_Framework_TestCase
 
     }
 
-    private function createCompiledContainerForConfig($config, $debug = false)
+    private function createCompiledContainerForConfig($config, $debug = false, $extraServices = array())
     {
         $container = $this->createContainer($debug);
+        $container->addDefinitions($extraServices);
         $container->registerExtension(new NelmioSolariumExtension());
         $container->loadFromExtension('nelmio_solarium', $config);
         $this->compileContainer($container);
@@ -501,4 +524,8 @@ class NelmioSolariumExtensionTest extends \PHPUnit_Framework_TestCase
 
 class StubClient extends \Solarium\Client
 {
+}
+
+class MyPluginClass extends \Solarium\Core\Plugin\Plugin {
+
 }
